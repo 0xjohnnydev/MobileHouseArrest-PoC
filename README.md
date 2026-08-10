@@ -20,6 +20,18 @@ was active.
 | Class 2 and an app identifier | `/private/var/mobile/Containers/Data/Application/<UUID>/` |
 | Class 7 and an app-group identifier | `/private/var/mobile/Containers/Shared/AppGroup/<UUID>/` |
 
+One notable target is the Notes app group, `group.com.apple.notes`. Its
+container includes the user's Notes database and sidecar files:
+
+```text
+/private/var/mobile/Containers/Shared/AppGroup/<Notes-group-UUID>/NoteStore.sqlite
+/private/var/mobile/Containers/Shared/AppGroup/<Notes-group-UUID>/NoteStore.sqlite-wal
+/private/var/mobile/Containers/Shared/AppGroup/<Notes-group-UUID>/NoteStore.sqlite-shm
+```
+
+The MobileHouseArrest route therefore exposed sensitive user note data through
+the same class-7 container access.
+
 The request selects a container identifier. It does not select an arbitrary
 filesystem path.
 
