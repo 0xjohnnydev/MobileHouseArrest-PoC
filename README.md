@@ -14,6 +14,64 @@ platform-binary flag, or known CDHash.
 Notes, Safari, app-group, and WebKit container access are effects of this one
 authorization bug. They are not separate bugs.
 
+## Paths exposed by MobileHouseArrest
+
+The caller selects a ContainerManager class and identifier. It does not supply
+an arbitrary filesystem path.
+
+| Request | Resolved path family | Access |
+| --- | --- | --- |
+| Class 2 and an app bundle identifier | `/private/var/mobile/Containers/Data/Application/<UUID>/` | Container read/write while the extension is active, subject to POSIX permissions and Data Protection. |
+| Class 7 and an app-group identifier | `/private/var/mobile/Containers/Shared/AppGroup/<UUID>/` | App-group read/write while the extension is active, with the same limits. |
+
+Runtime tests on `24A5390f` obtained and activated class-2 roots for Safari and
+Notes and the class-7 root for `group.com.apple.notes`. The safe PoC writes only
+the cooperating app's file:
+
+```text
+/private/var/mobile/Containers/Data/Application/<victim-UUID>/Documents/sbescape-canary.txt
+```
+
+The extension covers the selected container root. It does not cover sibling
+containers, `/private/var` as a whole, Keychain data, or arbitrary paths.
+
+## Related MCM bug: MobileGestalt cache write
+
+The MobileGestalt result used a separate class-13 well-known-system-group
+authorization bug. It did not require the MobileHouseArrest identity. It is
+included here because both bugs are in the MobileContainerManager family.
+
+The granted directory was exactly:
+
+```text
+/private/var/containers/Shared/SystemGroup/systemgroup.com.apple.mobilegestaltcache/Library/Caches/
+```
+
+This includes the live cache plist:
+
+```text
+/private/var/containers/Shared/SystemGroup/systemgroup.com.apple.mobilegestaltcache/Library/Caches/com.apple.MobileGestalt.plist
+```
+
+The corrected request used `GroupIdentifiers`, class 13, part 3, and a
+read/write extension:
+
+```objc
+setClass(query, 13);
+setGroup(query,
+    xpc_string_create("systemgroup.com.apple.mobilegestaltcache"));
+setFlags(query, (UINT64_C(1) << 39) | (UINT64_C(1) << 32));
+setPart(query, 3); // Library/Caches
+```
+
+On `iPhone18,2` build `24A5380h`, this route provided read/write authority to
+the directory and plist. A transactional test installed chosen plist bytes,
+read them back, and restored the original bytes and inode.
+
+This was a fixed-directory write. It was not arbitrary `/private/var` access.
+The corrected class-13 request has not been rerun on `24A5390f`. Static analysis
+shows the class-13 nonzero-access route is blocked in `24A5408d`.
+
 ## Core request
 
 The application must have this exact CodeDirectory identifier:
