@@ -21,12 +21,20 @@ an arbitrary filesystem path.
 
 | Request | Resolved path family | Access |
 | --- | --- | --- |
-| Class 2 and an app bundle identifier | `/private/var/mobile/Containers/Data/Application/<UUID>/` | Container read/write while the extension is active, subject to POSIX permissions and Data Protection. |
-| Class 7 and an app-group identifier | `/private/var/mobile/Containers/Shared/AppGroup/<UUID>/` | App-group read/write while the extension is active, with the same limits. |
+| Class 2 and an app bundle identifier | `/private/var/mobile/Containers/Data/Application/<UUID>/` | Directory listing and file read/write are proven on `24A5380h`. Extension activation and directory listing are proven on `24A5390f`. POSIX permissions and Data Protection still apply. |
+| Class 7 and an app-group identifier | `/private/var/mobile/Containers/Shared/AppGroup/<UUID>/` | Directory listing and file read/write are proven on `24A5380h`. Extension activation and directory listing are proven on `24A5390f`, with the same limits. |
 
 Runtime tests on `24A5390f` obtained and activated class-2 roots for Safari and
-Notes and the class-7 root for `group.com.apple.notes`. The safe PoC writes only
-the cooperating app's file:
+Notes and the class-7 root for `group.com.apple.notes`. Those tests performed
+complete directory enumeration and verified denial after release. They did not
+perform a file write.
+
+Separate `24A5380h` tests proved file read/write through the same identity bug.
+They created, read back, and removed 36-byte canaries in a victim app, Notes,
+and the Notes app group. A final controlled-victim test also changed and
+exactly restored the victim's `state.json` file.
+
+The published PoC limits its write to this cooperating-app file:
 
 ```text
 /private/var/mobile/Containers/Data/Application/<victim-UUID>/Documents/sbescape-canary.txt
@@ -135,13 +143,21 @@ Build with the `iphoneos` SDK for `arm64e`. No private entitlement is required.
 
 ## Result and limits
 
-Runtime proof exists on `iPhone18,2`, build `24A5390f`. The test received a
-usable extension and changed and restored the cooperating app's canary.
+Runtime proof on `iPhone12,1`, build `24A5380h`, covers foreign-container file
+read/write, chosen canary creation, readback, deletion, and controlled-victim
+restoration. Runtime proof on `iPhone18,2`, build `24A5390f`, covers extension
+issuance, activation, directory enumeration, and denial after release. It did
+not repeat the content-write test.
 
 The primitive is scoped container read/write. It does not bypass POSIX
 ownership, Data Protection, Keychain policy, TCC, AMFI, or unrelated
 MobileContainerManager mutation commands.
 
+These tests establish only the named iOS 27.0 beta builds. The earliest
+affected version is unknown.
+
 Static analysis of `iPhone18,2` build `24A5408d` shows that nonzero-access
 extension issuance through this allow-list result is blocked. A runtime denial
-test on that exact build remains useful confirmation.
+test on that exact build remains useful confirmation. The new extension core
+contains a proxied-client branch, but the direct third-party route still fails
+the earlier nonzero-access authorization gate.

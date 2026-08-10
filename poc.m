@@ -68,10 +68,15 @@ int run_mobilehousearrest_poc(void)
         query_set_part == NULL || query_result == NULL ||
         query_free == NULL || object_copy == NULL || object_free == NULL ||
         object_path == NULL || copy_token == NULL || activate == NULL) {
+        dlclose(lib);
         return 2;
     }
 
     container_query_t query = query_create();
+    if (query == NULL) {
+        dlclose(lib);
+        return 3;
+    }
     query_set_class(query, 2);                  // app-data container
     query_set_flags(query, UINT64_C(0x900000000));
     query_set_part(query, 0);
@@ -85,7 +90,8 @@ int run_mobilehousearrest_poc(void)
     container_object_t object = borrowed != NULL ? object_copy(borrowed) : NULL;
     if (object == NULL) {
         query_free(query);
-        return 3;                               // patched or victim missing
+        dlclose(lib);
+        return 4;                               // patched or victim missing
     }
 
     NSString *root = [NSString stringWithUTF8String:object_path(object)];
@@ -112,11 +118,12 @@ int run_mobilehousearrest_poc(void)
     object_free(object);                       // revokes the extension
     query_free(query);
     BOOL deniedAfter = !CanOpen(canary);
+    dlclose(lib);
 
     BOOL success = deniedBefore && activated && changedReadBack &&
         restored && deniedAfter;
     fprintf(stderr,
         "MHA success=%d path=%s activated=%d restored=%d post_denied=%d\n",
         success, canary.UTF8String, activated, restored, deniedAfter);
-    return success ? 0 : 4;
+    return success ? 0 : 5;
 }
