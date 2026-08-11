@@ -78,6 +78,13 @@ That route used class 13, group identifier
 The MobileHouseArrest and class-13 routes are patched in iOS 27 beta 5
 (`24A5408d`). The iOS 26.6.1 status is not verified.
 
+Runtime testing confirmed the MobileHouseArrest escape on an iPhone 11 running
+iOS 26.5.2 (`23F84`). The PoC changed and read back a cooperating app's
+canary, restored the original bytes, and lost access after releasing the
+sandbox extension.
+
+The separate class-13 MobileGestalt route was not reproduced on `23F84`.
+
 ## Use
 
 1. Add [`poc.m`](poc.m) to an Objective-C iOS application target.
