@@ -94,6 +94,9 @@ query_set_part(query, 3);
 it, opens the live MobileGestalt plist with `O_RDWR`, and confirms access is
 revoked after release. It does not change the plist.
 
+On releases without the newer `part` API, the PoC requests the system-group
+root and tests the same plist below `Library/Caches`.
+
 ## Versions
 
 Works on iOS 27 beta 1 through beta 4 and iOS 26. It should also apply to
