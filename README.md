@@ -37,13 +37,14 @@ filesystem path.
 ```objc
 container_query_t query = query_create();
 query_set_class(query, 2);
-query_set_flags(query, UINT64_C(0x900000000));
-query_set_part(query, 0);
 
-xpc_object_t ids = xpc_array_create(NULL, 0);
-xpc_array_set_string(ids, XPC_ARRAY_APPEND,
-                     "local.research.SandboxCanaryVictim");
-query_set_ids(query, ids);
+xpc_object_t identifier = xpc_string_create(
+    "local.research.SandboxCanaryVictim");
+query_set_ids(query, identifier);
+
+query_set_flags(query, UINT64_C(0x900000000));
+if (query_set_part != NULL)
+    query_set_part(query, 0);
 
 container_object_t object = query_result(query);
 BOOL activated = object != NULL && activate(object, false);

