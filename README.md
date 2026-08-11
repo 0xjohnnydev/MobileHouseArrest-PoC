@@ -1,27 +1,39 @@
-# MobileHouseArrest container access PoC
+# MobileHouseArrest Container Access PoC
 
 MobileContainerManager trusted the caller's CodeDirectory identifier as an
-authorization key. A development-signed app could use:
+authorization key. A development-signed app could use this identifier:
 
 ```text
 com.apple.mobile.MobileHouseArrest
 ```
 
-The app could request another app's data container or app-group container. The
-returned sandbox extension gave read and write access while active.
+The app could then request another app's data container or app-group container.
+The returned sandbox extension gave read and write access while active.
 
-The same PoC also implements the separate class-13 MobileGestalt authorization
-bug. That route does not depend on the MobileHouseArrest identity.
+This repository contains two routes:
 
-## Paths
+| Route | Trigger | Access |
+| --- | --- | --- |
+| MobileHouseArrest | Signed identifier `com.apple.mobile.MobileHouseArrest` | App and app-group containers |
+| MobileGestalt class 13 | Well-known system-group query | Fixed MobileGestalt cache directory |
 
-| Request | Path |
-| --- | --- |
-| Class 2 and an app identifier | `/private/var/mobile/Containers/Data/Application/<UUID>/` |
-| Class 7 and an app-group identifier | `/private/var/mobile/Containers/Shared/AppGroup/<UUID>/` |
-| Class 13 and `systemgroup.com.apple.mobilegestaltcache` | `/private/var/containers/Shared/SystemGroup/systemgroup.com.apple.mobilegestaltcache/Library/Caches/` |
+The class-13 route does not require the MobileHouseArrest identity.
 
-The Notes app group, `group.com.apple.notes`, includes these files:
+## Accessible Paths
+
+### App data — class 2
+
+```text
+/private/var/mobile/Containers/Data/Application/<UUID>/
+```
+
+### App groups — class 7
+
+```text
+/private/var/mobile/Containers/Shared/AppGroup/<UUID>/
+```
+
+The `group.com.apple.notes` container includes the Notes database:
 
 ```text
 /private/var/mobile/Containers/Shared/AppGroup/<Notes-group-UUID>/NoteStore.sqlite
@@ -29,10 +41,16 @@ The Notes app group, `group.com.apple.notes`, includes these files:
 /private/var/mobile/Containers/Shared/AppGroup/<Notes-group-UUID>/NoteStore.sqlite-shm
 ```
 
-The request selects a container identifier. It does not accept an arbitrary
+### MobileGestalt cache — class 13
+
+```text
+/private/var/containers/Shared/SystemGroup/systemgroup.com.apple.mobilegestaltcache/Library/Caches/
+```
+
+Each request selects a container identifier. It does not accept an arbitrary
 filesystem path.
 
-## MobileHouseArrest request
+## MobileHouseArrest Request
 
 ```objc
 container_query_t query = query_create();
@@ -52,16 +70,9 @@ BOOL activated = object != NULL && activate(object, false);
 
 After activation, normal file APIs can read and write inside the container.
 
-## Class-13 MobileGestalt request
+## MobileGestalt Class-13 Request
 
-A separate class-13 authorization bug gave read and write access to this fixed
-directory:
-
-```text
-/private/var/containers/Shared/SystemGroup/systemgroup.com.apple.mobilegestaltcache/Library/Caches/
-```
-
-This directory contains:
+The class-13 bug gave read and write access to this fixed file:
 
 ```text
 /private/var/containers/Shared/SystemGroup/systemgroup.com.apple.mobilegestaltcache/Library/Caches/com.apple.MobileGestalt.plist
@@ -85,23 +96,23 @@ query_set_part(query, 3);
 `run_mobilegestalt_class13_poc()` requires a sandbox token. It activates the
 token and opens the live plist with `O_RDWR`. It does not change the plist.
 
-## Tested devices
+## Tested Devices
 
 These results apply to the class-13 MobileGestalt route.
 
-| Device | Version | Result |
-| --- | --- | --- |
-| iPhone 11 | iOS 27 beta 4 | Working. The token grants `O_RDWR` access to the plist. |
-| iPhone 11 | iOS 26 | Not supported by this PoC. The query returns the cache path without usable file access. |
-| iPhone 16 Pro Max | iOS 18 | Not supported by this PoC. The query returns the system-group root without a sandbox token. |
+| Device | Version | Status | Result |
+| --- | --- | --- | --- |
+| iPhone 11 | iOS 27 beta 4 | **Working** | The token grants `O_RDWR` access to the plist. |
+| iPhone 11 | iOS 26 | **Not supported** | The query returns the cache path without usable file access. |
+| iPhone 16 Pro Max | iOS 18 | **Not supported** | The query returns the system-group root without a sandbox token. |
 
 ## TODO
 
-- Add the iOS 26 class-13 request that grants real file access.
-- Add an iOS 18 request that does not require the newer `part` API.
-- Select the correct request at runtime after both paths pass `O_RDWR` checks.
+- [ ] Find and verify an iOS 26 class-13 request that grants `O_RDWR` access.
+- [ ] Implement an iOS 18 request that does not require the newer `part` API.
+- [ ] Select the correct request at runtime after both paths pass `O_RDWR` checks.
 
-## Use
+## Build and Run
 
 1. Add [`poc.m`](poc.m) to an Objective-C iOS application target.
 2. Build with the `iphoneos` SDK for `arm64e`.
